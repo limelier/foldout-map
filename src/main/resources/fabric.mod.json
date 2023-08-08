@@ -1,0 +1,41 @@
+{
+	"schemaVersion": 1,
+	"id": "foldout-map",
+	"version": "${version}",
+	"name": "Foldout Map",
+	"description": "A simple client-side world map mod based on actual map items.",
+	"authors": [
+		"limelier"
+	],
+	"contact": {
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "GPL-3.0",
+	"icon": "assets/foldout-map/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"client": [
+			{
+				"value": "dev.limelier.foldoutmap.FoldoutMapClient",
+				"adapter": "kotlin"
+			}
+		]
+	},
+	"mixins": [
+		"foldout-map.mixins.json",
+		{
+			"config": "foldout-map.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.14.22",
+		"minecraft": "~1.20.1",
+		"java": ">=17",
+		"fabric-api": "*",
+		"fabric-language-kotlin": ">=1.9.0"
+	},
+	"suggests": {
+		"another-mod": "*"
+	}
+}
