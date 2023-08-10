@@ -1,6 +1,8 @@
 package dev.limelier.foldoutmap.state
 
 import dev.limelier.foldoutmap.math.Vec2i
+import net.minecraft.registry.RegistryKey
+import net.minecraft.world.World
 
 object FoldoutMapState {
     private val serverData: MutableMap<String, MutableMap<FoldoutMapKey, FoldoutMap>> = mutableMapOf()
@@ -13,5 +15,13 @@ object FoldoutMapState {
         serverData.getOrPut(server) { mutableMapOf() }.getOrPut(key) { mutableMapOf() }[coords] = tile
     }
 
-    operator fun get(server: String): MutableMap<FoldoutMapKey, FoldoutMap> = serverData.getValue(server)
+    /**
+     * Get an existing foldout map or create a new one and return it.
+     */
+    fun getOrCreate(server: String, scale: Byte, dimension: RegistryKey<World>): FoldoutMap {
+        val key = FoldoutMapKey(scale, dimension)
+        return serverData.getOrPut(server) { mutableMapOf() }
+            .getOrPut(key) { mutableMapOf() }
+    }
+
 }
