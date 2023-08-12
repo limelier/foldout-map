@@ -14,13 +14,14 @@ import net.minecraft.item.Items
 import net.minecraft.text.Text
 import org.lwjgl.glfw.GLFW
 
-const val FULL_BRIGHT = 0xF000F0
+private const val FULL_BRIGHT = 0xF000F0
 
-class MapScreen(private val parent: Screen?)
+internal class MapScreen(private val parent: Screen?)
     : Screen(Text.translatable("text.foldout-map.map_screen_title"))
 {
     private lateinit var selectedFoldoutMap: FoldoutMap
-    private lateinit var foldoutMapPixelOrigin: Vec2d
+    private lateinit var foldoutMapTopLeftPos: Vec2d
+    private lateinit var foldoutMapOriginPos: Vec2d
     private lateinit var replaceButton: ButtonWidget
     private var replacing = false
 
@@ -33,14 +34,18 @@ class MapScreen(private val parent: Screen?)
         addDrawableChild(replaceButton)
 
         selectedFoldoutMap = FoldoutMapState.getOrCreate("todo", 0, client!!.world!!.registryKey)
-        foldoutMapPixelOrigin = Vec2d(width / 2.0, height / 2.0) - selectedFoldoutMap.pixelSize * 0.5
+        foldoutMapTopLeftPos = (Vec2d(width, height) - selectedFoldoutMap.pixelSize) / 2.0
+
+        foldoutMapOriginPos = foldoutMapTopLeftPos - if (selectedFoldoutMap.isEmpty()) {
+            Vec2d.DOWN_RIGHT * MapTile.PIXEL_SIZE / 2.0
+        } else {
+            selectedFoldoutMap.boundingBox!!.topLeft.toVec2d() * MapTile.PIXEL_SIZE
+        }
     }
 
     override fun render(context: DrawContext?, mouseX: Int, mouseY: Int, delta: Float) {
         renderBackground(context!!)
         replaceButton.visible = !replacing
-
-        selectedFoldoutMap = FoldoutMapState.getOrCreate("todo", 0, client!!.world!!.registryKey)
 
         for ((tilePos, tile) in selectedFoldoutMap) {
             drawMapTile(context.matrices, tile, tilePos)
@@ -93,7 +98,7 @@ class MapScreen(private val parent: Screen?)
 
     private fun drawMapTile(matrices: MatrixStack, tile: MapTile, tilePos: Vec2i) {
         val vcp = VertexConsumerProvider.immediate(Tessellator.getInstance().buffer)
-        val screenPos = foldoutMapPixelOrigin + tilePosToRelativePixelPos(tilePos)
+        val screenPos = tileToPixel(tilePos)
 
         matrices.push()
         matrices.translate(screenPos.x, screenPos.y, 1.0)
@@ -123,7 +128,7 @@ class MapScreen(private val parent: Screen?)
         )
     }
 
-    private fun tileToPixel(tilePos: Vec2i): Vec2d = foldoutMapPixelOrigin + tilePosToRelativePixelPos(tilePos)
+    private fun tileToPixel(tilePos: Vec2i): Vec2d = foldoutMapOriginPos + FoldoutMap.tileToPixel(tilePos)
 
-    private fun pixelToTile(pixelPos: Vec2d): Vec2i = relativePixelPosToTilePos(pixelPos - foldoutMapPixelOrigin)
+    private fun pixelToTile(pixelPos: Vec2d): Vec2i = FoldoutMap.pixelToTile(pixelPos - foldoutMapOriginPos)
 }

@@ -8,7 +8,7 @@ import net.minecraft.client.option.KeyBinding
 import net.minecraft.client.util.InputUtil
 import org.lwjgl.glfw.GLFW
 
-object FoldoutMapClient : ClientModInitializer {
+internal object FoldoutMapClient : ClientModInitializer {
 	private lateinit var displayMapGUIBinding: KeyBinding
 
 	override fun onInitializeClient() {
