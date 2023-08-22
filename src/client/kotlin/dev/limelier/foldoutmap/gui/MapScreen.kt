@@ -2,6 +2,7 @@ package dev.limelier.foldoutmap.gui
 
 import dev.limelier.foldoutmap.math.Vec2i
 import dev.limelier.foldoutmap.math.Vec2d
+import dev.limelier.foldoutmap.model.SelectionGoal
 import dev.limelier.foldoutmap.state.*
 import net.minecraft.client.gui.DrawContext
 import net.minecraft.client.gui.screen.Screen
@@ -23,11 +24,11 @@ internal class MapScreen(private val parent: Screen?)
     private lateinit var foldoutMapTopLeftPos: Vec2d
     private lateinit var foldoutMapOriginPos: Vec2d
     private lateinit var replaceButton: ButtonWidget
-    private var replacing = false
+    private var selectionGoal: SelectionGoal? = null
 
     override fun init() {
         replaceButton = ButtonWidget.builder(Text.translatable("text.foldout-map.button.replace")) {
-            replacing = true
+            selectionGoal = SelectionGoal.REPLACE
         }
             .position(10, 10)
             .build()
@@ -45,13 +46,13 @@ internal class MapScreen(private val parent: Screen?)
 
     override fun render(context: DrawContext?, mouseX: Int, mouseY: Int, delta: Float) {
         renderBackground(context!!)
-        replaceButton.visible = !replacing
+        replaceButton.visible = selectionGoal == null
 
         for ((tilePos, tile) in selectedFoldoutMap) {
             drawMapTile(context.matrices, tile, tilePos)
         }
 
-        if (replacing) {
+        if (selectionGoal != null) {
             val mouseTile = pixelToTile(Vec2d(mouseX, mouseY))
             drawReplaceRectangle(context, mouseTile)
         }
@@ -60,8 +61,8 @@ internal class MapScreen(private val parent: Screen?)
     }
 
     override fun close() {
-        if (replacing) {
-            replacing = false
+        if (selectionGoal != null) {
+            selectionGoal = null
             return
         }
 
@@ -69,7 +70,7 @@ internal class MapScreen(private val parent: Screen?)
     }
 
     override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {
-        if (replacing && button == GLFW.GLFW_MOUSE_BUTTON_1) {
+        if (selectionGoal == SelectionGoal.REPLACE && button == GLFW.GLFW_MOUSE_BUTTON_1) {
             return trySetTile(pixelToTile(Vec2d(mouseX, mouseY)))
         }
 
@@ -92,7 +93,7 @@ internal class MapScreen(private val parent: Screen?)
             FilledMapItem.getMapId(mapItem)!!,
             FilledMapItem.getMapState(mapItem, client!!.world)!!
         )
-        replacing = false
+        selectionGoal = null
         return true
     }
 
