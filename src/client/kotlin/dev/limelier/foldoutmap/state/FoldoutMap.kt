@@ -30,9 +30,12 @@ internal class FoldoutMap {
         data[tilePos] = tile
     }
 
+    /**
+     * Remove a tile from that position if it exists.
+     */
     fun remove(tilePos: Vec2i) {
-        data.remove(tilePos)
-        if (boundingBox?.isOnBorder(tilePos) == true) {
+        val removed = data.remove(tilePos)
+        if (removed != null && boundingBox?.isOnBorder(tilePos) == true) {
             recalculateBounds()
         }
     }

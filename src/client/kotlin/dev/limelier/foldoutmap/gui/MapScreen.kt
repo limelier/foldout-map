@@ -23,16 +23,25 @@ internal class MapScreen(private val parent: Screen?)
     private lateinit var selectedFoldoutMap: FoldoutMap
     private lateinit var foldoutMapTopLeftPos: Vec2d
     private lateinit var foldoutMapOriginPos: Vec2d
-    private lateinit var replaceButton: ButtonWidget
+    private val buttons: MutableList<ButtonWidget> = mutableListOf()
     private var selectionGoal: SelectionGoal? = null
 
     override fun init() {
-        replaceButton = ButtonWidget.builder(Text.translatable("text.foldout-map.button.replace")) {
-            selectionGoal = SelectionGoal.REPLACE
-        }
-            .position(10, 10)
-            .build()
-        addDrawableChild(replaceButton)
+        buttons.add(
+            ButtonWidget.builder(Text.translatable("text.foldout-map.button.replace")) {
+                selectionGoal = SelectionGoal.REPLACE
+            }
+                .position(10, 10)
+                .build()
+        )
+        buttons.add(
+            ButtonWidget.builder(Text.translatable("text.foldout-map.button.delete")) {
+                selectionGoal = SelectionGoal.DELETE
+            }
+                .position(170, 10)
+                .build()
+        )
+        buttons.forEach { addDrawableChild(it) }
 
         selectedFoldoutMap = FoldoutMapState.getOrCreate("todo", 0, client!!.world!!.registryKey)
         foldoutMapTopLeftPos = (Vec2d(width, height) - selectedFoldoutMap.pixelSize) / 2.0
@@ -46,7 +55,7 @@ internal class MapScreen(private val parent: Screen?)
 
     override fun render(context: DrawContext?, mouseX: Int, mouseY: Int, delta: Float) {
         renderBackground(context!!)
-        replaceButton.visible = selectionGoal == null
+        buttons.forEach { it.visible = selectionGoal == null }
 
         for ((tilePos, tile) in selectedFoldoutMap) {
             drawMapTile(context.matrices, tile, tilePos)
@@ -70,8 +79,17 @@ internal class MapScreen(private val parent: Screen?)
     }
 
     override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {
-        if (selectionGoal == SelectionGoal.REPLACE && button == GLFW.GLFW_MOUSE_BUTTON_1) {
-            return trySetTile(pixelToTile(Vec2d(mouseX, mouseY)))
+        if (selectionGoal != null && button == GLFW.GLFW_MOUSE_BUTTON_1) {
+            val clickedTile = pixelToTile(Vec2d(mouseX, mouseY))
+            return when (selectionGoal) {
+                SelectionGoal.REPLACE -> trySetTile(clickedTile)
+                SelectionGoal.DELETE -> {
+                    selectedFoldoutMap.remove(clickedTile)
+                    selectionGoal = null
+                    true
+                }
+                else -> { throw NotImplementedError("unknown selection goal: $selectionGoal") }
+            }
         }
 
         return super.mouseClicked(mouseX, mouseY, button)
@@ -93,6 +111,7 @@ internal class MapScreen(private val parent: Screen?)
             FilledMapItem.getMapId(mapItem)!!,
             FilledMapItem.getMapState(mapItem, client!!.world)!!
         )
+
         selectionGoal = null
         return true
     }
