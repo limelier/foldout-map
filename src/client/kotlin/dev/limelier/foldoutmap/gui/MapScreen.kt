@@ -17,6 +17,7 @@ import net.minecraft.text.Text
 import org.lwjgl.glfw.GLFW
 
 private const val FULL_BRIGHT = 0xF000F0
+private const val ZOOM_STEP = 0.2
 
 internal class MapScreen(private val parent: Screen?)
     : Screen(Text.translatable("text.foldout-map.map_screen_title"))
@@ -26,6 +27,8 @@ internal class MapScreen(private val parent: Screen?)
     private lateinit var foldoutMapOriginPos: Vec2d
     private val buttons: MutableList<ButtonWidget> = mutableListOf()
     private var selectionGoal: SelectionGoal? = null
+    private var zoomFactor = 1.0
+    private var panOffset = Vec2d(0.0, 0.0)
 
     override fun init() {
         buttons.add(
@@ -45,16 +48,17 @@ internal class MapScreen(private val parent: Screen?)
         buttons.forEach { addDrawableChild(it) }
 
         selectedFoldoutMap = FoldoutMapState.getOrCreate("todo", 0, client!!.world!!.registryKey)
-        foldoutMapTopLeftPos = (Vec2d(width, height) - selectedFoldoutMap.pixelSize) / 2.0
+    }
+
+    override fun render(context: DrawContext?, mouseX: Int, mouseY: Int, delta: Float) {
+        foldoutMapTopLeftPos = ((Vec2d(width, height) - selectedFoldoutMap.pixelSize.zoom()) / 2.0).pan()
 
         foldoutMapOriginPos = foldoutMapTopLeftPos - if (selectedFoldoutMap.isEmpty()) {
             Vec2d.DOWN_RIGHT * MapTile.PIXEL_SIZE / 2.0
         } else {
             selectedFoldoutMap.boundingBox!!.topLeft.toVec2d() * MapTile.PIXEL_SIZE
-        }
-    }
+        }.zoom()
 
-    override fun render(context: DrawContext?, mouseX: Int, mouseY: Int, delta: Float) {
         renderBackground(context!!)
         buttons.forEach { it.visible = selectionGoal == null }
 
@@ -96,6 +100,19 @@ internal class MapScreen(private val parent: Screen?)
         return super.mouseClicked(mouseX, mouseY, button)
     }
 
+    override fun mouseDragged(mouseX: Double, mouseY: Double, button: Int, deltaX: Double, deltaY: Double): Boolean {
+        if (button != GLFW.GLFW_MOUSE_BUTTON_1) { return false }
+        panOffset += Vec2d(deltaX, deltaY)
+        return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY)
+    }
+
+    override fun mouseScrolled(mouseX: Double, mouseY: Double, amount: Double): Boolean {
+        if (amount > 0 || zoomFactor - ZOOM_STEP > ZOOM_STEP) {
+            zoomFactor += amount * ZOOM_STEP
+        }
+        return super.mouseScrolled(mouseX, mouseY, amount)
+    }
+
     /**
      * Try setting the tile at [tilePos] to a map in the player's hand, returning `true` if successful.
      *
@@ -123,7 +140,7 @@ internal class MapScreen(private val parent: Screen?)
 
         matrices.push()
         matrices.translate(screenPos.x, screenPos.y, 1.0)
-        matrices.scale(1.0f, 1.0f, -1.0f)
+        matrices.scale(zoomFactor.toFloat(), zoomFactor.toFloat(), -1.0f)
 
         tile.mapState.icons.removeAll { it.type == MapIcon.Type.PLAYER_OFF_MAP }
 
@@ -144,14 +161,19 @@ internal class MapScreen(private val parent: Screen?)
         context.fill(
             screenPos.x.toInt(),
             screenPos.y.toInt(),
-            (screenPos.x + MapTile.PIXEL_SIZE).toInt(),
-            (screenPos.y + MapTile.PIXEL_SIZE).toInt(),
+            (screenPos.x + MapTile.PIXEL_SIZE.zoom()).toInt(),
+            (screenPos.y + MapTile.PIXEL_SIZE.zoom()).toInt(),
             2,
             0x22FFFFFF
         )
     }
 
-    private fun tileToPixel(tilePos: Vec2i): Vec2d = foldoutMapOriginPos + FoldoutMap.tileToPixel(tilePos)
+    private fun tileToPixel(tilePos: Vec2i): Vec2d = foldoutMapOriginPos + FoldoutMap.tileToPixel(tilePos).zoom()
 
-    private fun pixelToTile(pixelPos: Vec2d): Vec2i = FoldoutMap.pixelToTile(pixelPos - foldoutMapOriginPos)
+    private fun pixelToTile(pixelPos: Vec2d): Vec2i = FoldoutMap.pixelToTile((pixelPos - foldoutMapOriginPos).unzoom())
+
+    private fun Double.zoom() = this * zoomFactor
+    private fun Vec2d.zoom() = this * zoomFactor
+    private fun Vec2d.unzoom() = this / zoomFactor
+    private fun Vec2d.pan() = this + panOffset
 }
