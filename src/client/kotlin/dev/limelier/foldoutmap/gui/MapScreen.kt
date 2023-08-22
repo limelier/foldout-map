@@ -12,6 +12,7 @@ import net.minecraft.client.render.VertexConsumerProvider
 import net.minecraft.client.util.math.MatrixStack
 import net.minecraft.item.FilledMapItem
 import net.minecraft.item.Items
+import net.minecraft.item.map.MapIcon
 import net.minecraft.text.Text
 import org.lwjgl.glfw.GLFW
 
@@ -122,7 +123,9 @@ internal class MapScreen(private val parent: Screen?)
 
         matrices.push()
         matrices.translate(screenPos.x, screenPos.y, 1.0)
-        matrices.scale(1.0f, 1.0f, 1.0f)
+        matrices.scale(1.0f, 1.0f, -1.0f)
+
+        tile.mapState.icons.removeAll { it.type == MapIcon.Type.PLAYER_OFF_MAP }
 
         client!!.gameRenderer.mapRenderer.draw(
             matrices,
