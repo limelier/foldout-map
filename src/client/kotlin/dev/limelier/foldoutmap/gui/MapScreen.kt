@@ -52,11 +52,13 @@ internal class MapScreen(private val parent: Screen?)
     override fun render(context: DrawContext?, mouseX: Int, mouseY: Int, delta: Float) {
         foldoutMapTopLeftPos = ((Vec2d(width, height) - selectedFoldoutMap.pixelSize.zoom()) / 2.0).pan()
 
-        foldoutMapOriginPos = foldoutMapTopLeftPos - if (selectedFoldoutMap.isEmpty()) {
-            Vec2d.DOWN_RIGHT * MapTile.PIXEL_SIZE / 2.0
-        } else {
-            selectedFoldoutMap.boundingBox!!.topLeft.toVec2d() * MapTile.PIXEL_SIZE
-        }.zoom()
+        foldoutMapOriginPos = foldoutMapTopLeftPos - (
+                if (selectedFoldoutMap.isEmpty()) {
+                    Vec2d.DOWN_RIGHT * MapTile.PIXEL_SIZE / 2.0
+                } else {
+                    selectedFoldoutMap.boundingBox!!.topLeft.toVec2d() * MapTile.PIXEL_SIZE
+                }
+            ).zoom()
 
         renderBackground(context!!)
         buttons.forEach { it.visible = selectionGoal == null }
