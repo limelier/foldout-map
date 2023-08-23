@@ -2,7 +2,6 @@ package dev.limelier.foldoutmap.gui
 
 import dev.limelier.foldoutmap.math.Vec2i
 import dev.limelier.foldoutmap.math.Vec2d
-import dev.limelier.foldoutmap.model.SelectionGoal
 import dev.limelier.foldoutmap.state.*
 import net.minecraft.client.gui.DrawContext
 import net.minecraft.client.gui.screen.Screen

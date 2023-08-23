@@ -1,4 +1,4 @@
-package dev.limelier.foldoutmap.model
+package dev.limelier.foldoutmap.gui
 
 internal enum class SelectionGoal {
     REPLACE,
