@@ -1,7 +1,7 @@
 plugins {
 	id("fabric-loom") version "1.3-SNAPSHOT"
 	`maven-publish`
-  	kotlin("jvm") version "1.9.0"
+  	kotlin("jvm") version "1.9.10"
 	java
 }
 
@@ -22,6 +22,7 @@ loom {
 		}
 	}
 
+	accessWidenerPath = project.file("src/main/resources/foldout-map.accessWidener")
 }
 
 dependencies {

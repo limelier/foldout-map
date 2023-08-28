@@ -2,21 +2,45 @@ package dev.limelier.foldoutmap.state
 
 import dev.limelier.foldoutmap.math.Vec2d
 import dev.limelier.foldoutmap.math.Vec2i
+import net.minecraft.nbt.NbtCompound
+import net.minecraft.world.PersistentState
 
-internal class FoldoutMap {
+internal class FoldoutMap : PersistentState() {
     companion object {
         /**
          * Get the pixel position of the top left corner of the tile at [tilePos] relative to its FoldoutMap.
          */
         fun tileToPixel(tilePos: Vec2i): Vec2d = tilePos.toVec2d() * MapTile.PIXEL_SIZE
+
         /**
          * Get the position of the tile containing the given [pixelPos].
          */
         fun pixelToTile(pixelPos: Vec2d): Vec2i = (pixelPos / MapTile.PIXEL_SIZE).floorToVec2i()
+
+        fun fromNbt(nbt: NbtCompound): FoldoutMap {
+            val foldoutMap = FoldoutMap()
+
+            val dataNbt = nbt.getCompound("data")
+            dataNbt.keys.forEach { k ->
+                val keyComponents = k.split(",").map { it.toInt() }
+                val key = Vec2i(keyComponents[0], keyComponents[1])
+                val tile = MapTile.fromNbt(dataNbt.getCompound(k))
+                foldoutMap.data[key] = tile
+            }
+
+            val boundingBox = Rect2i(
+                Vec2i(nbt.getInt("topleftX"), nbt.getInt("topLeftY")),
+                Vec2i(nbt.getInt("bottomRightX"), nbt.getInt("bottomRightY"))
+            )
+            foldoutMap.boundingBox = boundingBox
+
+            return foldoutMap
+        }
     }
 
     private val data: MutableMap<Vec2i, MapTile> = mutableMapOf()
     var boundingBox: Rect2i? = null
+        private set
 
     /**
      * The size in texture pixels of the rectangle bounding all map tiles.
@@ -65,6 +89,28 @@ internal class FoldoutMap {
         for (tilePos in data.keys) {
             boundingBox = boundingBox?.expandedToContain(tilePos) ?: Rect2i.ofTile(tilePos)
         }
+    }
+
+    override fun writeNbt(nbt: NbtCompound?): NbtCompound {
+        val dataNbt = NbtCompound()
+        data.forEach { (k, v) ->
+            val keyString = "${k.x},${k.y}"
+            val valueNbt = NbtCompound()
+            v.writeNbt(valueNbt)
+            dataNbt.put(keyString, valueNbt)
+        }
+        nbt!!.put("data", dataNbt)
+
+        boundingBox?.let {
+            val bbNbt = NbtCompound()
+            bbNbt.putInt("topLeftX", it.topLeft.x)
+            bbNbt.putInt("topLeftY", it.topLeft.y)
+            bbNbt.putInt("bottomRightX", it.bottomRight.x)
+            bbNbt.putInt("bottomRightY", it.bottomRight.y)
+            nbt.put("boundingBox", bbNbt)
+        }
+
+        return nbt
     }
 
 }

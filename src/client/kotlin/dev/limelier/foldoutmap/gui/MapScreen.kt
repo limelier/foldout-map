@@ -21,13 +21,15 @@ private const val ZOOM_STEP = 0.2
 internal class MapScreen(private val parent: Screen?)
     : Screen(Text.translatable("text.foldout-map.map_screen_title"))
 {
-    private lateinit var selectedFoldoutMap: FoldoutMap
+    private lateinit var foldoutMapFileAccessor: FoldoutMapFileAccessor
+    private lateinit var foldoutMap: FoldoutMap
     private lateinit var foldoutMapTopLeftPos: Vec2d
     private lateinit var foldoutMapOriginPos: Vec2d
     private val buttons: MutableList<ButtonWidget> = mutableListOf()
     private var selectionGoal: SelectionGoal? = null
     private var zoomFactor = 1.0
     private var panOffset = Vec2d(0.0, 0.0)
+    private var dirty = false
 
     override fun init() {
         buttons.add(
@@ -46,24 +48,33 @@ internal class MapScreen(private val parent: Screen?)
         )
         buttons.forEach { addDrawableChild(it) }
 
-        selectedFoldoutMap = FoldoutMapState.getOrCreate("todo", 0, client!!.world!!.registryKey)
+
+        val clientWorld = client!!.world!!
+        val integratedServer = client!!.server
+        foldoutMapFileAccessor = if (integratedServer != null) {
+            FoldoutMapFileAccessor.singleplayer(integratedServer, clientWorld.registryKey, 0)
+        } else {
+            val seedHash = client!!.world!!.biomeAccess.seed
+            FoldoutMapFileAccessor.multiplayer(seedHash, clientWorld.registryKey, 0)
+        }
+        foldoutMap = foldoutMapFileAccessor.get()
     }
 
     override fun render(context: DrawContext?, mouseX: Int, mouseY: Int, delta: Float) {
-        foldoutMapTopLeftPos = ((Vec2d(width, height) - selectedFoldoutMap.pixelSize.zoom()) / 2.0).pan()
+        foldoutMapTopLeftPos = ((Vec2d(width, height) - foldoutMap.pixelSize.zoom()) / 2.0).pan()
 
         foldoutMapOriginPos = foldoutMapTopLeftPos - (
-                if (selectedFoldoutMap.isEmpty()) {
+                if (foldoutMap.isEmpty()) {
                     Vec2d.DOWN_RIGHT * MapTile.PIXEL_SIZE / 2.0
                 } else {
-                    selectedFoldoutMap.boundingBox!!.topLeft.toVec2d() * MapTile.PIXEL_SIZE
+                    foldoutMap.boundingBox!!.topLeft.toVec2d() * MapTile.PIXEL_SIZE
                 }
             ).zoom()
 
         renderBackground(context!!)
         buttons.forEach { it.visible = selectionGoal == null }
 
-        for ((tilePos, tile) in selectedFoldoutMap) {
+        for ((tilePos, tile) in foldoutMap) {
             drawMapTile(context.matrices, tile, tilePos)
         }
 
@@ -81,6 +92,11 @@ internal class MapScreen(private val parent: Screen?)
             return
         }
 
+        if (dirty) {
+            foldoutMapFileAccessor.put(foldoutMap)
+            dirty = false
+        }
+
         client?.setScreen(parent)
     }
 
@@ -90,9 +106,7 @@ internal class MapScreen(private val parent: Screen?)
             return when (selectionGoal) {
                 SelectionGoal.REPLACE -> trySetTile(clickedTile)
                 SelectionGoal.DELETE -> {
-                    selectedFoldoutMap.remove(clickedTile)
-                    selectionGoal = null
-                    true
+                    deleteTile(clickedTile)
                 }
                 else -> { throw NotImplementedError("unknown selection goal: $selectionGoal") }
             }
@@ -126,12 +140,23 @@ internal class MapScreen(private val parent: Screen?)
             ?: inv.offHand[0].takeIf { it.item == Items.FILLED_MAP }
             ?: return false
 
-        selectedFoldoutMap[tilePos] = MapTile(
+        foldoutMap[tilePos] = MapTile(
             FilledMapItem.getMapId(mapItem)!!,
             FilledMapItem.getMapState(mapItem, client!!.world)!!
         )
 
         selectionGoal = null
+        dirty = true
+        return true
+    }
+
+    /**
+     * Delete the tile at [tilePos] from the foldout map if it exists, and return `true`.
+     */
+    private fun deleteTile(tilePos: Vec2i): Boolean {
+        foldoutMap.remove(tilePos)
+        selectionGoal = null
+        dirty = true
         return true
     }
 
